@@ -1,0 +1,105 @@
+{
+  "test_type": "aws_live",
+  "timestamp": "2026-03-04T15:02:44.505481",
+  "environment": {
+    "ids_instance": "t3.xlarge (10.0.1.30, public: 3.231.204.1)",
+    "victim_instance": "t3.micro (10.0.1.20)",
+    "attacker_instance": "t3.small (10.0.1.10)",
+    "network": "AWS VPC 10.0.1.0/24 (us-east-1)"
+  },
+  "test_config": {
+    "duration_per_phase_s": 20,
+    "intensity": "low",
+    "pause_between_phases_s": 3,
+    "total_duration_s": 358,
+    "pcap_interval_s": 5,
+    "interface": "ens5"
+  },
+  "summary": {
+    "total_flows": 576,
+    "elapsed_s": 403,
+    "rate_fps": 1.4,
+    "alerts": {
+      "NORMAL": 0,
+      "KNOWN_ATTACK": 428,
+      "SUSPICIOUS": 121,
+      "ZERO_DAY_CANDIDATE": 27
+    },
+    "attack_types": {
+      "DDoS-SYN_Flood": 281,
+      "DDoS-ICMP_Flood": 124,
+      "DDoS-HTTP_Flood": 122,
+      "DDoS-RSTFINFlood": 33,
+      "Mirai-udpplain": 10,
+      "DDoS-ICMP_Fragmentation": 5,
+      "DDoS-PSHACK_Flood": 1
+    }
+  },
+  "phases": [
+    {
+      "name": "Baseline (Benign)",
+      "ciciot_class": "BenignTraffic",
+      "duration_s": 20
+    },
+    {
+      "name": "SYN Flood",
+      "ciciot_class": "DDoS-SYN_Flood",
+      "duration_s": 20
+    },
+    {
+      "name": "UDP Flood",
+      "ciciot_class": "DDoS-UDP_Flood",
+      "duration_s": 20
+    },
+    {
+      "name": "HTTP Flood",
+      "ciciot_class": "DDoS-HTTP_Flood",
+      "duration_s": 20
+    },
+    {
+      "name": "Slowloris",
+      "ciciot_class": "DDoS-SlowLoris",
+      "duration_s": 20
+    },
+    {
+      "name": "Port Scan",
+      "ciciot_class": "Recon-PortScan",
+      "duration_s": 20
+    },
+    {
+      "name": "SSH Brute Force",
+      "ciciot_class": "DictionaryBruteForce",
+      "duration_s": 20
+    },
+    {
+      "name": "Cooldown (Benign)",
+      "ciciot_class": "BenignTraffic",
+      "duration_s": 20
+    }
+  ],
+  "decision_engine": {
+    "KNOWN_ATTACK": {
+      "count": 428,
+      "avg_confidence": 0.9358,
+      "avg_anomaly": 0.5791,
+      "avg_consistency": 0.8
+    },
+    "SUSPICIOUS": {
+      "count": 121,
+      "avg_confidence": 0.3783,
+      "avg_anomaly": 0.6816,
+      "avg_consistency": 0.8
+    },
+    "ZERO_DAY_CANDIDATE": {
+      "count": 27,
+      "avg_confidence": 0.288,
+      "avg_anomaly": 0.8549,
+      "avg_consistency": 0.8
+    }
+  },
+  "level_percentages": {
+    "KNOWN_ATTACK": 74.3,
+    "SUSPICIOUS": 21.0,
+    "ZERO_DAY_CANDIDATE": 4.7
+  }
+}

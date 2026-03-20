@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IntegratedIDS Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+        .header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 20px; color: #58a6ff; }
+        .header .status {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-active { background: #238636; color: #fff; }
+        .status-idle { background: #30363d; color: #8b949e; }
+
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 16px 24px;
+        }
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .card h3 {
+            font-size: 14px;
+            color: #8b949e;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 0 24px;
+            margin-bottom: 16px;
+        }
+        .stat-box {
+            flex: 1;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-box .value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+        .stat-box .label {
+            font-size: 12px;
+            color: #8b949e;
+            margin-top: 4px;
+        }
+
+        .color-normal { color: #3fb950; }
+        .color-known { color: #58a6ff; }
+        .color-suspicious { color: #d29922; }
+        .color-zeroday { color: #f85149; }
+
+        .bg-normal { background: rgba(63, 185, 80, 0.15); border-color: #3fb950; }
+        .bg-known { background: rgba(88, 166, 255, 0.15); border-color: #58a6ff; }
+        .bg-suspicious { background: rgba(210, 153, 34, 0.15); border-color: #d29922; }
+        .bg-zeroday { background: rgba(248, 81, 73, 0.15); border-color: #f85149; }
+
+        .alert-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .alert-table th {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid #30363d;
+            color: #8b949e;
+            font-weight: 600;
+        }
+        .alert-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #21262d;
+        }
+        .alert-table tr:hover { background: #1c2128; }
+
+        .alert-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .alert-NORMAL { background: #238636; color: #fff; }
+        .alert-KNOWN_ATTACK { background: #1f6feb; color: #fff; }
+        .alert-SUSPICIOUS { background: #9e6a03; color: #fff; }
+        .alert-ZERO_DAY_CANDIDATE { background: #da3633; color: #fff; }
+
+        .chart-container {
+            position: relative;
+            height: 260px;
+        }
+        .chart-container-wide {
+            position: relative;
+            height: 200px;
+        }
+
+        .full-width { grid-column: 1 / -1; }
+
+        .scroll-table {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+
+        /* --- Decision Engine Panel --- */
+        .decision-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        .decision-flow {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .flow-step {
+            display: flex;
+            align-items: stretch;
+            margin-bottom: 2px;
+        }
+        .flow-branch {
+            width: 20px;
+            border-left: 2px solid #30363d;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .flow-branch::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -2px;
+            width: 14px;
+            height: 2px;
+            background: #30363d;
+        }
+        .flow-step:last-child .flow-branch {
+            border-left-color: transparent;
+        }
+        .flow-box {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+            background: #0d1117;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+        .flow-condition {
+            color: #c9d1d9;
+            font-size: 12px;
+        }
+        .flow-condition code {
+            color: #d2a8ff;
+            background: rgba(210, 168, 255, 0.1);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+        .flow-result {
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .flow-count {
+            font-size: 12px;
+            color: #8b949e;
+            min-width: 30px;
+            text-align: right;
+        }
+
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .metrics-table th {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid #30363d;
+            color: #8b949e;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .metrics-table td {
+            padding: 8px;
+            border-bottom: 1px solid #21262d;
+        }
+        .metrics-table tr:hover { background: #1c2128; }
+        .metric-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: #21262d;
+            margin-top: 4px;
+        }
+        .metric-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>IntegratedIDS Dashboard</h1>
+        <div class="status">
+            <span id="ws-status" class="status-badge status-idle">WS: CONNECTING</span>
+        </div>
+    </div>
+
+    <!-- Controls removed: replay auto-starts on page load -->
+
+    <div class="stat-row">
+        <div class="stat-box bg-normal">
+            <div class="value color-normal" id="count-normal">0</div>
+            <div class="label">NORMAL</div>
+        </div>
+        <div class="stat-box bg-known">
+            <div class="value color-known" id="count-known">0</div>
+            <div class="label">KNOWN ATTACK</div>
+        </div>
+        <div class="stat-box bg-suspicious">
+            <div class="value color-suspicious" id="count-suspicious">0</div>
+            <div class="label">SUSPICIOUS</div>
+        </div>
+        <div class="stat-box bg-zeroday">
+            <div class="value color-zeroday" id="count-zeroday">0</div>
+            <div class="label">ZERO-DAY CANDIDATE</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- Row 1: Alert Distribution + Attack Types -->
+        <div class="card">
+            <h3>Alert Distribution</h3>
+            <div class="chart-container">
+                <canvas id="pie-chart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Top Attack Types</h3>
+            <div class="chart-container">
+                <canvas id="bar-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Row 2: Timeline + Confidence/Anomaly scatter -->
+        <div class="card">
+            <h3>Alert Timeline</h3>
+            <div class="chart-container">
+                <canvas id="timeline-chart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Confidence vs Anomaly Score</h3>
+            <div class="chart-container">
+                <canvas id="scatter-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Row 3: Decision Engine Panel -->
+        <div class="card full-width">
+            <h3>Decision Engine</h3>
+            <div class="decision-panel">
+                <!-- Left: Decision Flow -->
+                <div>
+                    <div style="font-size:12px; color:#8b949e; margin-bottom:10px;">DECISION FLOW</div>
+                    <div class="decision-flow">
+                        <div class="flow-step">
+                            <div class="flow-branch"></div>
+                            <div class="flow-box" style="border-color:#3fb950;">
+                                <div class="flow-condition">Prediction = <code>BenignTraffic</code> ?</div>
+                                <span class="flow-result alert-NORMAL">NORMAL</span>
+                                <span class="flow-count" id="flow-normal">0</span>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-branch"></div>
+                            <div class="flow-box" style="border-color:#f85149;">
+                                <div class="flow-condition">Anomaly score <code>&ge; 0.85</code> ?</div>
+                                <span class="flow-result alert-ZERO_DAY_CANDIDATE">ZERO_DAY</span>
+                                <span class="flow-count" id="flow-zeroday">0</span>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-branch"></div>
+                            <div class="flow-box" style="border-color:#d29922;">
+                                <div class="flow-condition">Confidence <code>&lt; 0.7</code> OR (consistency <code>&lt; 0.5</code> AND anomaly <code>&gt; 0.6</code>) ?</div>
+                                <span class="flow-result alert-SUSPICIOUS">SUSPICIOUS</span>
+                                <span class="flow-count" id="flow-suspicious">0</span>
+                            </div>
+                        </div>
+                        <div class="flow-step">
+                            <div class="flow-branch"></div>
+                            <div class="flow-box" style="border-color:#58a6ff;">
+                                <div class="flow-condition">Otherwise</div>
+                                <span class="flow-result alert-KNOWN_ATTACK">KNOWN_ATTACK</span>
+                                <span class="flow-count" id="flow-known">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right: Per-Level Metrics Table -->
+                <div>
+                    <div style="font-size:12px; color:#8b949e; margin-bottom:10px;">PER-LEVEL METRICS</div>
+                    <table class="metrics-table">
+                        <thead>
+                            <tr>
+                                <th>Level</th>
+                                <th>Count</th>
+                                <th>Avg Confidence</th>
+                                <th>Avg Anomaly</th>
+                                <th>Avg SHAP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metrics-body">
+                            <tr>
+                                <td><span class="alert-badge alert-NORMAL">NORMAL</span></td>
+                                <td id="m-normal-count">0</td>
+                                <td id="m-normal-conf">-</td>
+                                <td id="m-normal-anom">-</td>
+                                <td id="m-normal-shap">-</td>
+                            </tr>
+                            <tr>
+                                <td><span class="alert-badge alert-KNOWN_ATTACK">KNOWN_ATTACK</span></td>
+                                <td id="m-known-count">0</td>
+                                <td id="m-known-conf">-</td>
+                                <td id="m-known-anom">-</td>
+                                <td id="m-known-shap">-</td>
+                            </tr>
+                            <tr>
+                                <td><span class="alert-badge alert-SUSPICIOUS">SUSPICIOUS</span></td>
+                                <td id="m-suspicious-count">0</td>
+                                <td id="m-suspicious-conf">-</td>
+                                <td id="m-suspicious-anom">-</td>
+                                <td id="m-suspicious-shap">-</td>
+                            </tr>
+                            <tr>
+                                <td><span class="alert-badge alert-ZERO_DAY_CANDIDATE">ZERO_DAY</span></td>
+                                <td id="m-zeroday-count">0</td>
+                                <td id="m-zeroday-conf">-</td>
+                                <td id="m-zeroday-anom">-</td>
+                                <td id="m-zeroday-shap">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 4: Alerts table -->
+        <div class="card full-width">
+            <h3>Recent Alerts <span id="total-count" style="color:#58a6ff;"></span></h3>
+            <div class="scroll-table">
+                <table class="alert-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Time</th>
+                            <th>Alert Level</th>
+                            <th>Predicted Class</th>
+                            <th>True Label</th>
+                            <th>Confidence</th>
+                            <th>Anomaly</th>
+                            <th>SHAP</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alerts-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const COLORS = {
+            NORMAL: '#3fb950',
+            KNOWN_ATTACK: '#58a6ff',
+            SUSPICIOUS: '#d29922',
+            ZERO_DAY_CANDIDATE: '#f85149'
+        };
+
+        // --- Pie Chart ---
+        const pieChart = new Chart(document.getElementById('pie-chart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['NORMAL', 'KNOWN_ATTACK', 'SUSPICIOUS', 'ZERO_DAY_CANDIDATE'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: [COLORS.NORMAL, COLORS.KNOWN_ATTACK, COLORS.SUSPICIOUS, COLORS.ZERO_DAY_CANDIDATE],
+                    borderColor: '#161b22',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#c9d1d9', font: { size: 11 } } }
+                }
+            }
+        });
+
+        // --- Bar Chart (Attack Types) ---
+        const barChart = new Chart(document.getElementById('bar-chart'), {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Count',
+                    data: [],
+                    backgroundColor: '#58a6ff',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+                    y: { ticks: { color: '#c9d1d9', font: { size: 10 } }, grid: { display: false } }
+                }
+            }
+        });
+
+        // --- Timeline Chart (stacked area) ---
+        const timelineBuckets = []; // {t, NORMAL, KNOWN_ATTACK, SUSPICIOUS, ZERO_DAY_CANDIDATE}
+        let timelineBucketStart = null;
+        let currentBucket = {NORMAL:0, KNOWN_ATTACK:0, SUSPICIOUS:0, ZERO_DAY_CANDIDATE:0};
+        const BUCKET_MS = 3000; // 3 second buckets
+
+        const timelineChart = new Chart(document.getElementById('timeline-chart'), {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'NORMAL', data: [], backgroundColor: COLORS.NORMAL, stack: 'stack0' },
+                    { label: 'KNOWN_ATTACK', data: [], backgroundColor: COLORS.KNOWN_ATTACK, stack: 'stack0' },
+                    { label: 'SUSPICIOUS', data: [], backgroundColor: COLORS.SUSPICIOUS, stack: 'stack0' },
+                    { label: 'ZERO_DAY', data: [], backgroundColor: COLORS.ZERO_DAY_CANDIDATE, stack: 'stack0' },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: '#c9d1d9', font: { size: 10 }, boxWidth: 12 } }
+                },
+                scales: {
+                    x: { stacked: true, ticks: { color: '#8b949e', maxTicksLimit: 15, font: { size: 9 } }, grid: { color: '#21262d' } },
+                    y: { stacked: true, ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: 'Alerts', color: '#8b949e' } }
+                }
+            }
+        });
+
+        // --- Scatter Chart (Confidence vs Anomaly) with threshold lines ---
+        const scatterData = { NORMAL: [], KNOWN_ATTACK: [], SUSPICIOUS: [], ZERO_DAY_CANDIDATE: [] };
+
+        const scatterChart = new Chart(document.getElementById('scatter-chart'), {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    { label: 'NORMAL', data: [], backgroundColor: COLORS.NORMAL, pointRadius: 3 },
+                    { label: 'KNOWN_ATTACK', data: [], backgroundColor: COLORS.KNOWN_ATTACK, pointRadius: 3 },
+                    { label: 'SUSPICIOUS', data: [], backgroundColor: COLORS.SUSPICIOUS, pointRadius: 4 },
+                    { label: 'ZERO_DAY', data: [], backgroundColor: COLORS.ZERO_DAY_CANDIDATE, pointRadius: 5 },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: '#c9d1d9', font: { size: 10 }, boxWidth: 12 } },
+                    annotation: {
+                        annotations: {
+                            zeroDayLine: {
+                                type: 'line',
+                                yMin: 0.85,
+                                yMax: 0.85,
+                                borderColor: 'rgba(248, 81, 73, 0.6)',
+                                borderWidth: 2,
+                                borderDash: [6, 4],
+                                label: {
+                                    display: true,
+                                    content: 'Zero-Day threshold (0.85)',
+                                    position: 'start',
+                                    color: '#f85149',
+                                    backgroundColor: 'rgba(13, 17, 23, 0.8)',
+                                    font: { size: 10 }
+                                }
+                            },
+                            confidenceLine: {
+                                type: 'line',
+                                xMin: 0.7,
+                                xMax: 0.7,
+                                borderColor: 'rgba(210, 153, 34, 0.6)',
+                                borderWidth: 2,
+                                borderDash: [6, 4],
+                                label: {
+                                    display: true,
+                                    content: 'Confidence threshold (0.7)',
+                                    position: 'start',
+                                    color: '#d29922',
+                                    backgroundColor: 'rgba(13, 17, 23, 0.8)',
+                                    font: { size: 10 }
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { min: 0, max: 1, title: { display: true, text: 'Confidence', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+                    y: { min: 0, max: 1, title: { display: true, text: 'Anomaly Score', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
+                }
+            }
+        });
+
+        // --- WebSocket ---
+        let ws;
+        function connectWS() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${proto}//${location.host}/ws/alerts`);
+            ws.onopen = () => {
+                document.getElementById('ws-status').textContent = 'WS: CONNECTED';
+                document.getElementById('ws-status').className = 'status-badge status-active';
+            };
+            ws.onmessage = (event) => {
+                const alert = JSON.parse(event.data);
+                addAlertRow(alert);
+                addToTimeline(alert);
+                addToScatter(alert);
+            };
+            ws.onclose = () => {
+                document.getElementById('ws-status').textContent = 'WS: DISCONNECTED';
+                document.getElementById('ws-status').className = 'status-badge status-idle';
+                setTimeout(connectWS, 3000);
+            };
+        }
+        connectWS();
+
+        // --- Timeline bucketing ---
+        function addToTimeline(alert) {
+            const now = Date.now();
+            if (!timelineBucketStart) timelineBucketStart = now;
+
+            if (now - timelineBucketStart >= BUCKET_MS) {
+                // Flush current bucket
+                const label = new Date(timelineBucketStart).toLocaleTimeString();
+                timelineBuckets.push({label, ...currentBucket});
+                // Keep last 40 buckets
+                if (timelineBuckets.length > 40) timelineBuckets.shift();
+                currentBucket = {NORMAL:0, KNOWN_ATTACK:0, SUSPICIOUS:0, ZERO_DAY_CANDIDATE:0};
+                timelineBucketStart = now;
+                updateTimelineChart();
+            }
+            currentBucket[alert.alert_level] = (currentBucket[alert.alert_level] || 0) + 1;
+        }
+
+        function updateTimelineChart() {
+            timelineChart.data.labels = timelineBuckets.map(b => b.label);
+            timelineChart.data.datasets[0].data = timelineBuckets.map(b => b.NORMAL);
+            timelineChart.data.datasets[1].data = timelineBuckets.map(b => b.KNOWN_ATTACK);
+            timelineChart.data.datasets[2].data = timelineBuckets.map(b => b.SUSPICIOUS);
+            timelineChart.data.datasets[3].data = timelineBuckets.map(b => b.ZERO_DAY_CANDIDATE);
+            timelineChart.update('none');
+        }
+
+        // --- Scatter plot ---
+        function addToScatter(alert) {
+            const level = alert.alert_level;
+            const point = { x: alert.confidence, y: alert.anomaly_score };
+            if (!scatterData[level]) scatterData[level] = [];
+            scatterData[level].push(point);
+            // Keep last 200 per level
+            if (scatterData[level].length > 200) scatterData[level].shift();
+            // Update every 10 points
+            const total = Object.values(scatterData).reduce((s,a) => s + a.length, 0);
+            if (total % 10 === 0) updateScatterChart();
+        }
+
+        function updateScatterChart() {
+            scatterChart.data.datasets[0].data = scatterData.NORMAL;
+            scatterChart.data.datasets[1].data = scatterData.KNOWN_ATTACK;
+            scatterChart.data.datasets[2].data = scatterData.SUSPICIOUS;
+            scatterChart.data.datasets[3].data = scatterData.ZERO_DAY_CANDIDATE;
+            scatterChart.update('none');
+        }
+
+        // --- Alert table ---
+        function addAlertRow(alert) {
+            const tbody = document.getElementById('alerts-body');
+            const tr = document.createElement('tr');
+            const ts = new Date(alert.timestamp * 1000).toLocaleTimeString();
+            const trueLabel = alert.true_label || '-';
+            const consistency = alert.consistency != null ? (alert.consistency * 100).toFixed(1) + '%' : '-';
+            // Highlight zero-day rows
+            if (alert.alert_level === 'ZERO_DAY_CANDIDATE') {
+                tr.style.background = 'rgba(248, 81, 73, 0.1)';
+            } else if (alert.alert_level === 'SUSPICIOUS') {
+                tr.style.background = 'rgba(210, 153, 34, 0.05)';
+            }
+            tr.innerHTML = `
+                <td>${alert.id}</td>
+                <td>${ts}</td>
+                <td><span class="alert-badge alert-${alert.alert_level}">${alert.alert_level}</span></td>
+                <td>${alert.predicted_class}</td>
+                <td>${trueLabel}</td>
+                <td>${(alert.confidence * 100).toFixed(1)}%</td>
+                <td>${(alert.anomaly_score * 100).toFixed(1)}%</td>
+                <td>${consistency}</td>
+                <td>${alert.source || ''}</td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+            while (tbody.children.length > 200) {
+                tbody.removeChild(tbody.lastChild);
+            }
+        }
+
+        // --- Poll stats ---
+        async function pollStats() {
+            try {
+                const resp = await fetch('/stats');
+                const data = await resp.json();
+
+                document.getElementById('count-normal').textContent = data.alerts.NORMAL;
+                document.getElementById('count-known').textContent = data.alerts.KNOWN_ATTACK;
+                document.getElementById('count-suspicious').textContent = data.alerts.SUSPICIOUS;
+                document.getElementById('count-zeroday').textContent = data.alerts.ZERO_DAY_CANDIDATE;
+                document.getElementById('total-count').textContent =
+                    `(${data.total} total, ${data.rate} /s)`;
+
+                pieChart.data.datasets[0].data = [
+                    data.alerts.NORMAL, data.alerts.KNOWN_ATTACK,
+                    data.alerts.SUSPICIOUS, data.alerts.ZERO_DAY_CANDIDATE
+                ];
+                pieChart.update('none');
+
+                const types = Object.entries(data.attack_types).slice(0, 10);
+                barChart.data.labels = types.map(t => t[0]);
+                barChart.data.datasets[0].data = types.map(t => t[1]);
+                barChart.update('none');
+
+                // Auto-start replay if not running and no alerts yet
+                if (!data.replay_running && data.total === 0 && !replayStarted) {
+                    replayStarted = true;
+                    fetch('/clear', { method: 'POST' }).then(() =>
+                        fetch('/replay/start?rate=15&include_holdout=true', { method: 'POST' })
+                    );
+                }
+            } catch (e) {
+                console.error('Stats poll error:', e);
+            }
+        }
+
+        // --- Poll decision stats ---
+        async function pollDecisionStats() {
+            try {
+                const resp = await fetch('/decision_stats');
+                const data = await resp.json();
+
+                const mapping = {
+                    'NORMAL': { prefix: 'normal', flowId: 'flow-normal' },
+                    'KNOWN_ATTACK': { prefix: 'known', flowId: 'flow-known' },
+                    'SUSPICIOUS': { prefix: 'suspicious', flowId: 'flow-suspicious' },
+                    'ZERO_DAY_CANDIDATE': { prefix: 'zeroday', flowId: 'flow-zeroday' },
+                };
+
+                for (const [level, info] of Object.entries(mapping)) {
+                    const d = data[level];
+                    if (!d) continue;
+                    document.getElementById(`m-${info.prefix}-count`).textContent = d.count;
+                    document.getElementById(`m-${info.prefix}-conf`).textContent =
+                        d.count > 0 ? (d.avg_confidence * 100).toFixed(1) + '%' : '-';
+                    document.getElementById(`m-${info.prefix}-anom`).textContent =
+                        d.count > 0 ? (d.avg_anomaly * 100).toFixed(1) + '%' : '-';
+                    document.getElementById(`m-${info.prefix}-shap`).textContent =
+                        d.count > 0 ? (d.avg_consistency * 100).toFixed(1) + '%' : '-';
+                    document.getElementById(info.flowId).textContent = d.count;
+                }
+            } catch (e) {
+                // /decision_stats may not exist yet
+            }
+        }
+
+        let replayStarted = false;
+
+        setInterval(pollStats, 2000);
+        setInterval(pollDecisionStats, 2000);
+        pollStats();
+        pollDecisionStats();
+    </script>
+</body>
+</html>

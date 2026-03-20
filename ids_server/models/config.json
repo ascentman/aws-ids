@@ -1,0 +1,49 @@
+{
+  "known_classes": [
+    "BenignTraffic",
+    "DDoS-ACK_Fragmentation",
+    "DDoS-HTTP_Flood",
+    "DDoS-ICMP_Flood",
+    "DDoS-ICMP_Fragmentation",
+    "DDoS-PSHACK_Flood",
+    "DDoS-RSTFINFlood",
+    "DDoS-SYN_Flood",
+    "DDoS-SlowLoris",
+    "DDoS-SynonymousIP_Flood",
+    "DDoS-TCP_Flood",
+    "DDoS-UDP_Flood",
+    "DDoS-UDP_Fragmentation",
+    "DNS_Spoofing",
+    "DictionaryBruteForce",
+    "DoS-HTTP_Flood",
+    "DoS-SYN_Flood",
+    "DoS-TCP_Flood",
+    "DoS-UDP_Flood",
+    "MITM-ArpSpoofing",
+    "Mirai-greeth_flood",
+    "Mirai-greip_flood",
+    "Mirai-udpplain",
+    "Recon-HostDiscovery",
+    "Recon-OSScan",
+    "Recon-PingSweep",
+    "Recon-PortScan",
+    "SqlInjection",
+    "VulnerabilityScan",
+    "XSS"
+  ],
+  "holdout_classes": [
+    "Backdoor_Malware",
+    "BrowserHijacking",
+    "Uploading_Attack",
+    "CommandInjection"
+  ],
+  "normal_class": "BenignTraffic",
+  "n_features": 46,
+  "n_classes": 30,
+  "thresholds": {
+    "confidence": 0.7,
+    "shap_consistency": 0.5,
+    "anomaly": 0.6,
+    "zero_day": 0.85
+  }
+}

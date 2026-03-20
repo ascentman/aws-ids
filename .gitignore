@@ -1,0 +1,15 @@
+# Large model binaries
+ids_server/models/*.pkl
+ids_server/models/shap_explainer.pkl
+ids_server/models/lgb_model.pkl
+ids_server/models/iso_forest.pkl
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+
+# macOS
+.DS_Store
